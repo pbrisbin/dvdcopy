@@ -8,12 +8,10 @@
 #
 ###
 
-# utilities {{{
-logger() { echo -e "$(date +'[ %d %b %H:%M ]') :: $*"; }
+logger()   { echo -e "$(date +'[ %d %b %H:%M ]') :: $*"; }
+errorout() { echo -e "\aerror: $*" >&2; exit 1;          }
 
-errorout() { echo -e "\aerror: $*" >&2; exit 1; }
-
-prompt() {
+prompt() { # {{{
   echo -en "\a$*? [Y/n/q] " && read A
 
   case "${A:-y}" in
@@ -21,9 +19,9 @@ prompt() {
     Q|q) exit 1   ;;
     *)   return 1 ;;
   esac
-}
+} # }}}
 
-requirements() {
+requirements() { # {{{
   local reqs=('bc'      'perl'      'tcprobe'
               'vobcopy' 'mencoder'  'dvdauthor'
               'mkisofs' 'growisofs')
@@ -31,24 +29,23 @@ requirements() {
   for req in ${reqs[@]}; do
     which $req &>/dev/null || errorout "$req required, not installed."
   done
-}
+} # }}}
 
-make_clean() {
+make_clean() { # {{{
   logger 'cleaning up after last time...'
   rm -rf "$directory"; mkdir -p "$directory"
-}
+} # }}}
 
-cleanup() {
+cleanup() { # {{{
   if ! $keep_files; then
     logger 'cleaning up...'
     rm -rf "$directory"
   fi
-}
 
-# }}}
+  logger 'done.'
+} # }}}
 
-# get info {{{
-get_dvd_info() {
+get_dvd_info() { # {{{
   local count=0
 
   logger 'gathering DVD info...'
@@ -96,12 +93,9 @@ get_dvd_info() {
   for ((i=0; i<${#chapters[@]}; i++)); do
     logger "               : chapter $((i+1))\t${chapters[$i]}"
   done
-}
+} # }}}
 
-# }}}
-
-# make mpeg {{{
-make_mpeg() {
+make_mpeg() { # {{{
   local options
 
   logger 'encoding video...'
@@ -120,12 +114,9 @@ make_mpeg() {
 
   # exit if desired
   $mpeg_only && exit 0
-}
+} # }}}
 
-# }}}
-
-# author dvd {{{
-author_dvd() {
+author_dvd() { # {{{
   logger "authoring DVD..."
 
   if [[ -f "$directory/ch.list" ]]; then
@@ -141,12 +132,9 @@ author_dvd() {
 
   # exit if desired
   $dvd_only && exit 0
-}
+} # }}}
 
-# }}}
-
-# build ISO {{{
-build_iso() {
+build_iso() { # {{{
   logger 'generating ISO...'
 
   ionice -t -c 3 mkisofs -dvd-video -o "$directory/movie.iso" "$directory/MOVIE" >>"$stdout" 2>>"$stderr" || errorout 'mkisofs failed creating image'
@@ -156,12 +144,9 @@ build_iso() {
 
   # exit if desired
   $iso_only && exit 0
-}
+} # }}}
 
-# }}}
-
-# burn ISO {{{
-burn_iso() {
+burn_iso() { # {{{
   local count
 
   eject "$device" || logger 'eject failed'
@@ -181,12 +166,9 @@ burn_iso() {
 
     sleep 5; eject "$device" || logger 'eject failed'
   fi
-}
+} # }}}
 
-# }}}
-
-# options handling {{{
-message() {
+message() { # {{{
   cat << EOF
 
   usage: dvdcopy [ --option(=<argument>) ] [...]
@@ -263,9 +245,9 @@ message() {
 EOF
   
   exit 1
-}
+} # }}}
 
-set_defaults() {
+set_defaults() { # {{{
   config="$HOME/.dvdcopy.conf"
 
   directory="$PWD/dvdcopy"
@@ -292,9 +274,9 @@ set_defaults() {
 
   stdout='/dev/stdout'
   stderr='/dev/null'
-}
+} # }}}
 
-parse_options() {
+parse_options() { # {{{
   [[ -f "$config" ]] && . "$config" # get user config
 
   while [[ -n "$1" ]]; do
@@ -312,9 +294,9 @@ parse_options() {
     esac
     shift
   done
-}
+} # }}}
 
-validate_options() {
+validate_options() { # {{{
   if ! $force; then
     # directory must exist
     [[ ! -d "$directory" ]] && errorout "$directory: does not exist"
@@ -340,9 +322,7 @@ validate_options() {
 
   $quiet   && stdout='/dev/null'
   $verbose && stderr='/dev/stderr'
-}
-
-# }}}
+} # }}}
 
 requirements       # check that we have all required apps
 set_defaults       # set sane defaults
@@ -355,5 +335,3 @@ author_dvd         # author a DVD structure
 build_iso          # make an iso
 burn_iso           # burn an iso
 cleanup            # cleanup
-
-logger 'done.'
