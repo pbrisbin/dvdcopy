@@ -23,15 +23,6 @@ prompt() {
   esac
 }
 
-make_proper() {
-    sed -e 's/_+*/ /g' \
-        -e 's/\b\(\w*\)\b/\L\u\1/g' \
-        -e 's/ The / the /g' \
-        -e 's/ A / a /g' \
-        -e 's/ An / an /g' \
-        -e 's/ With / with /g' <<< "$1"
-}
-
 requirements() {
   local reqs=('bc'      'perl'      'tcprobe'
               'vobcopy' 'mencoder'  'dvdauthor'
@@ -75,7 +66,6 @@ get_dvd_info() {
 
   name_lower="${name,,}"
   name_lower="${name_lower// /_}"
-  name_proper="$(make_proper "$name")"
 
   # get a/v and chapter info
   tcprobe -i "$device" -T $title -d 8 > "$directory/probe.txt" 2>&1 || errorout 'tcprobe failed reading disc'
@@ -97,7 +87,7 @@ get_dvd_info() {
 
   logger "found device   : $device"
   logger "found title    : $title"
-  logger "found name     : $name_proper"
+  logger "found name     : $name_lower"
   logger "found bitrate  : $vbr kbit/s"
   logger "found chapters : "
 
@@ -120,7 +110,6 @@ make_mpeg() {
     options="$mencoder_options"
     logger "adding mencoder option(s) \`$options'..."
   fi
-
 
   mencoder dvd://$title -dvd-device "$device" $options -ovc lavc -of mpeg -mpegopts format=dvd:tsaf -vf scale=720:480,harddup \
     -lavcopts vcodec=mpeg2video:vrc_buf_size=1835:vrc_maxrate=9800:vbitrate=${vbr}:keyint=18:vstrict=0:aspect=16/9 \
