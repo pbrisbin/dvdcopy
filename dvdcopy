@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# pbrisbin 2009, 2010
-# 
+# pbrisbin 2009, 2010, 2011
+#
 # Note: don't use me with dvdauthor 0.7.0, he throws exit status 1 waaay 
 # too often. Use IgnorePkg to stay at 0.6.* until i can figure out 
 # what's up
@@ -9,7 +9,7 @@
 ###
 
 logger()   { echo -e "$(date +'[ %d %b %H:%M ]') :: $*"; }
-errorout() { echo -e "\aerror: $*" >&2; exit 1;          }
+errorout() { echo -e "\aerror: $*" >/dev/stdour; exit 1; }
 
 prompt() { # {{{
   echo -en "\a$*? [Y/n/q] " && read A
@@ -54,7 +54,7 @@ get_dvd_info() { # {{{
     [[ $count -gt $limit ]] && errorout "vobcopy failed loading the disc $limit times"
 
     count=$((count+1))
-    sleep 1 && vobcopy -I "$device" > "$directory/title.txt" 2>&1
+    sleep 1 && vobcopy -I "$device" &> "$directory/title.txt"
   done
 
   [[ -z "$title" ]] && title="$(awk '/Most\ chapters/ {print $6}' "$directory/title.txt")"
@@ -65,7 +65,7 @@ get_dvd_info() { # {{{
   name_lower="${name_lower// /_}"
 
   # get a/v and chapter info
-  tcprobe -i "$device" -T $title -d 8 > "$directory/probe.txt" 2>&1 || errorout 'tcprobe failed reading disc'
+  tcprobe -i "$device" -T $title -d 8 &> "$directory/probe.txt" || errorout 'tcprobe failed reading disc'
 
   grep -E "\[Chapter ..\] " "$directory/probe.txt" | cut -d " " -f 4 | \
     perl -pi -e 's/\n/,/' | perl -pi -e 's/,$//' > "$directory/ch.list" || errorout 'failed to parse chapters listing.'
@@ -107,10 +107,10 @@ make_mpeg() { # {{{
 
   mencoder dvd://$title -dvd-device "$device" $options -ovc lavc -of mpeg -mpegopts format=dvd:tsaf -vf scale=720:480,harddup \
     -lavcopts vcodec=mpeg2video:vrc_buf_size=1835:vrc_maxrate=9800:vbitrate=${vbr}:keyint=18:vstrict=0:aspect=16/9 \
-    -ofps 30000/1001 -oac copy -o "$directory/movie.mpeg" >>"$stdout" 2>>"$stderr" || errorout "mencoder failed reading disc"
+    -ofps 30000/1001 -oac copy -o "$directory/movie.mpeg" || errorout "mencoder failed reading disc"
 
   # save it if desired
-  [[ -n "$mpeg_dir" ]] && ionice -t -c 3 cp -v "$directory/movie.mpeg" "$mpeg_dir/$name_lower.mpeg" >>"$stdout" 2>>"$stderr"
+  [[ -n "$mpeg_dir" ]] && ionice -t -c 3 cp -v "$directory/movie.mpeg" "$mpeg_dir/$name_lower.mpeg"
 
   # exit if desired
   $mpeg_only && exit 0
@@ -120,15 +120,15 @@ author_dvd() { # {{{
   logger "authoring DVD..."
 
   if [[ -f "$directory/ch.list" ]]; then
-    ionice -t -c 3 dvdauthor -t -c $(cat "$directory/ch.list") -o "$directory/MOVIE" "$directory/movie.mpeg" >>"$stdout" 2>>"$stderr" || errorout 'dvdauthor failed writing movie'
+    ionice -t -c 3 dvdauthor -t -c $(cat "$directory/ch.list") -o "$directory/MOVIE" "$directory/movie.mpeg" || errorout 'dvdauthor failed writing movie'
   else
-    ionice -t -c 3 dvdauthor -t -o "$directory/MOVIE" "$directory/movie.mpeg" >>"$stdout" 2>>"$stderr" || errorout 'dvdauthor failed writing movie'
+    ionice -t -c 3 dvdauthor -t -o "$directory/MOVIE" "$directory/movie.mpeg" || errorout 'dvdauthor failed writing movie'
   fi
 
-  ionice -t -c 3 dvdauthor -T -o "$directory/MOVIE" >>"$stdout" 2>>"$stderr" || errorout 'dvdauthor failed writing title'
+  ionice -t -c 3 dvdauthor -T -o "$directory/MOVIE" || errorout 'dvdauthor failed writing title'
 
   # save it if desired
-  [[ -n "$dvd_dir" ]] && ionice -t -c 3 cp -rv "$directory/MOVIE" "$dvd_dir/${name_lower^^}" >>"$stdout" 2>>"$stderr"
+  [[ -n "$dvd_dir" ]] && ionice -t -c 3 cp -rv "$directory/MOVIE" "$dvd_dir/${name_lower^^}"
 
   # exit if desired
   $dvd_only && exit 0
@@ -137,10 +137,10 @@ author_dvd() { # {{{
 build_iso() { # {{{
   logger 'generating ISO...'
 
-  ionice -t -c 3 mkisofs -dvd-video -o "$directory/movie.iso" "$directory/MOVIE" >>"$stdout" 2>>"$stderr" || errorout 'mkisofs failed creating image'
+  ionice -t -c 3 mkisofs -dvd-video -o "$directory/movie.iso" "$directory/MOVIE" || errorout 'mkisofs failed creating image'
 
   # save it if desired
-  [[ -n "$iso_dir" ]] && ionice -t -c 3 cp -v "$directory/movie.iso" "$iso_dir/$name_lower.iso" >>"$stdout" 2>>"$stderr"
+  [[ -n "$iso_dir" ]] && ionice -t -c 3 cp -v "$directory/movie.iso" "$iso_dir/$name_lower.iso"
 
   # exit if desired
   $iso_only && exit 0
@@ -161,7 +161,7 @@ burn_iso() { # {{{
       [[ $count -gt $limit ]] && errorout "growisofs failed burning image $limit times"
 
       count=$((count+1))
-      sleep 1 && growisofs -dvd-compat -Z $device="$directory/movie.iso" >>"$stdout" 2>>"$stderr"
+      sleep 1 && growisofs -dvd-compat -Z $device="$directory/movie.iso"
     done
 
     sleep 5; eject "$device" || logger 'eject failed'
@@ -213,7 +213,7 @@ message() { # {{{
       --mpeg_only                   stop after transcoding the mpeg
       --dvd_only                    stop after authoring the dvd
       --iso_only                    stop after generating the iso
-      
+
       --mpeg_dir=<directory>        set a save location for the
                                     intermediate mpeg file, default is
                                     blank -- don't save it
@@ -243,7 +243,7 @@ message() { # {{{
       --help                        print this
 
 EOF
-  
+
   exit 1
 } # }}}
 
@@ -272,8 +272,7 @@ set_defaults() { # {{{
   verbose=false
   force=false
 
-  stdout='/dev/stdout'
-  stderr='/dev/null'
+  exec 2>/dev/null
 } # }}}
 
 parse_options() { # {{{
@@ -320,8 +319,8 @@ validate_options() { # {{{
   $dvd_only  && dvd_dir="${dvd_dir:-$PWD}"
   $iso_only  && iso_dir="${iso_dir:-$PWD}"
 
-  $quiet   && stdout='/dev/null'
-  $verbose && stderr='/dev/stderr'
+  $quiet   && exec 1>/dev/null
+  $verbose && exec 2>/dev/stdout
 } # }}}
 
 requirements       # check that we have all required apps
