@@ -93,6 +93,8 @@ get_dvd_info() { # {{{
   for ((i=0; i<${#chapters[@]}; i++)); do
     logger "               : chapter $((i+1))\t${chapters[$i]}"
   done
+
+  $info_only && exit 0
 } # }}}
 
 make_mpeg() { # {{{
@@ -259,6 +261,7 @@ set_defaults() { # {{{
   size=4193404
   limit=15
 
+  info_only=false
   mpeg_only=false
   dvd_only=false
   iso_only=false
@@ -282,6 +285,7 @@ parse_options() { # {{{
   while [[ -n "$1" ]]; do
     case "$1" in
       --config=*)      . "${1#*=}" 2>/dev/null ;;
+      --info_only)     info_only=true          ;;
       --mpeg_only)     mpeg_only=true          ;;
       --dvd_only)      dvd_only=true           ;;
       --iso_only)      iso_only=true           ;;
