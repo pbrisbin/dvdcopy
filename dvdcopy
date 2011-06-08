@@ -9,7 +9,7 @@
 ###
 
 logger()   { echo -e "$(date +'[ %d %b %H:%M ]') :: $*"; }
-errorout() { echo -e "\aerror: $*" >/dev/stdour; exit 1; }
+errorout() { echo -e "\aerror: $*" >/dev/stdout; exit 1; }
 
 prompt() { # {{{
   echo -en "\a$*? [Y/n/q] " && read A
