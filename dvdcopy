@@ -2,14 +2,21 @@
 #
 # pbrisbin 2009, 2010, 2011
 #
-# Note: don't use me with dvdauthor 0.7.0, he throws exit status 1 waaay 
-# too often. Use IgnorePkg to stay at 0.6.* until i can figure out 
-# what's up
+# Note: dvdauthor 0.7.0 throws a non-zero exit status even though all's
+# well, try using --keep_going if you find this to be an issue.
 #
 ###
 
 logger()   { echo -e "$(date +'[ %d %b %H:%M ]') :: $*"; }
 errorout() { echo -e "\aerror: $*" >/dev/stdout; exit 1; }
+
+process_error() {
+  if $keep_going; then
+    echo "warning: $*" >&2
+  else
+    errorout "$*"
+  fi
+}
 
 prompt() { # {{{
   echo -en "\a$*? [Y/n/q] " && read A
@@ -68,7 +75,7 @@ get_dvd_info() { # {{{
   tcprobe -i "$device" -T $title -d 8 &> "$directory/probe.txt" || errorout 'tcprobe failed reading disc'
 
   grep -E "\[Chapter ..\] " "$directory/probe.txt" | cut -d " " -f 4 | \
-    perl -pi -e 's/\n/,/' | perl -pi -e 's/,$//' > "$directory/ch.list" || errorout 'failed to parse chapters listing.'
+    perl -pi -e 's/\n/,/' | perl -pi -e 's/,$//' > "$directory/ch.list" || process_error 'failed to parse chapters listing.'
 
   # a check on the chapters, so far it can always be fixed by picking
   # title 1
@@ -110,7 +117,7 @@ make_mpeg() { # {{{
   mencoder dvd://$title -dvd-device "$device" -mc 0 $options \
     -ovc lavc -of mpeg -mpegopts format=dvd:tsaf -vf scale=720:480,harddup \
     -lavcopts vcodec=mpeg2video:vrc_buf_size=1835:vrc_maxrate=9800:vbitrate=${vbr}:keyint=18:vstrict=0:aspect=16/9 \
-    -ofps 30000/1001 -oac copy -o "$directory/movie.mpeg" || errorout "mencoder failed reading disc"
+    -ofps 30000/1001 -oac copy -o "$directory/movie.mpeg" || process_error "mencoder failed reading disc"
 
   # save it if desired
   [[ -n "$mpeg_dir" ]] && ionice -t -c 3 cp -v "$directory/movie.mpeg" "$mpeg_dir/$name_lower.mpeg"
@@ -123,12 +130,12 @@ author_dvd() { # {{{
   logger "authoring DVD..."
 
   if [[ -f "$directory/ch.list" ]]; then
-    ionice -t -c 3 dvdauthor -t -c $(cat "$directory/ch.list") -o "$directory/MOVIE" "$directory/movie.mpeg" || errorout 'dvdauthor failed writing movie'
+    ionice -t -c 3 dvdauthor -t -c $(cat "$directory/ch.list") -o "$directory/MOVIE" "$directory/movie.mpeg" || process_error 'dvdauthor failed writing movie'
   else
-    ionice -t -c 3 dvdauthor -t -o "$directory/MOVIE" "$directory/movie.mpeg" || errorout 'dvdauthor failed writing movie'
+    ionice -t -c 3 dvdauthor -t -o "$directory/MOVIE" "$directory/movie.mpeg" || process_error 'dvdauthor failed writing movie'
   fi
 
-  ionice -t -c 3 dvdauthor -T -o "$directory/MOVIE" || errorout 'dvdauthor failed writing title'
+  ionice -t -c 3 dvdauthor -T -o "$directory/MOVIE" || process_error 'dvdauthor failed writing title'
 
   # save it if desired
   [[ -n "$dvd_dir" ]] && ionice -t -c 3 cp -rv "$directory/MOVIE" "$dvd_dir/${name_lower^^}"
@@ -140,7 +147,7 @@ author_dvd() { # {{{
 build_iso() { # {{{
   logger 'generating ISO...'
 
-  ionice -t -c 3 mkisofs -dvd-video -o "$directory/movie.iso" "$directory/MOVIE" || errorout 'mkisofs failed creating image'
+  ionice -t -c 3 mkisofs -dvd-video -o "$directory/movie.iso" "$directory/MOVIE" || process_error 'mkisofs failed creating image'
 
   # save it if desired
   [[ -n "$iso_dir" ]] && ionice -t -c 3 cp -v "$directory/movie.iso" "$iso_dir/$name_lower.iso"
@@ -161,7 +168,7 @@ burn_iso() { # {{{
     # until we succeed or reach $limit
     count=0
     false; while [[ $? -ne 0 ]]; do
-      [[ $count -gt $limit ]] && errorout "growisofs failed burning image $limit times"
+      [[ $count -gt $limit ]] && process_error "growisofs failed burning image $limit times"
 
       count=$((count+1))
       sleep 1 && growisofs -dvd-compat -Z $device="$directory/movie.iso"
@@ -178,9 +185,9 @@ message() { # {{{
 
     ~/.dvdcopy.conf will be read first if it's found (even if --config
     is passed). for syntax, see the help entry for the --config option.
-    commandline arguments will overrule what's defined in the config.
+    commandline arguments will overrule what's defined in the config
 
-    invalid options are ignored.
+    invalid options may lead to odd behavior
 
     options:
 
@@ -190,8 +197,10 @@ message() { # {{{
                                     options specifically to either true
                                     or false
 
-                                    there is no error if <file> doesn't
-                                    exist
+                                    this file must be valid bash syntax
+
+                                    there is no error on malformed or
+                                    non-existent <file>s
 
       --directory=<directory>       set the working directory, default
                                     is ./dvdcopy
@@ -201,13 +210,24 @@ message() { # {{{
                                     time dvdcopy is run regardless of
                                     this option
 
+                                    use a different --directory to keep
+                                    files across multiple runs
+
+      --keep_going                  by default, the process ends if one
+                                    of the sub-steps reports a non-zero
+                                    exit status; pass this flag to keep
+                                    going
+
       --device=<file>               set the reader/burner, default is
                                     /dev/sr0
+
+                                    dvdcopy currently does not support
+                                    separate devices for reading/burning
 
       --title=<number>              set the title, default is longest
 
       --size=<number>               set the desired output size in KB, 
-                                    default is 4193404
+                                    default is 4193404, DVD5
 
       --limit=<number>              set the number of times to attempt a
                                     read/burn before giving up, default
@@ -237,8 +257,8 @@ message() { # {{{
                                     after '-dvd-device <device>' but
                                     before all others
 
-      --quiet                       be quiet
-      --verbose                     be verbose
+      --quiet                       be quieter
+      --verbose                     be more verbose
 
       --force                       disable any options validation,
                                     useful if ripping from an image file
@@ -255,6 +275,7 @@ set_defaults() { # {{{
 
   directory="$PWD/dvdcopy"
   keep_files=false
+  keep_going=false
 
   device='/dev/sr0'
   title=''
@@ -290,6 +311,7 @@ parse_options() { # {{{
       --dvd_only)      dvd_only=true           ;;
       --iso_only)      iso_only=true           ;;
       -k|--keep_files) keep_files=true         ;;
+      -g|--keep_going) keep_going=true         ;;
       -q|--quiet)      quiet=true              ;;
       -v|--verbose)    verbose=true            ;;
       -f|--force)      force=true              ;;
