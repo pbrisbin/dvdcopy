@@ -2,9 +2,6 @@
 #
 # pbrisbin 2009, 2010, 2011
 #
-# Note: dvdauthor 0.7.0 throws a non-zero exit status even though all's
-# well, try using --keep_going if you find this to be an issue.
-#
 ###
 
 logger()   { echo -e "$(date +'[ %d %b %H:%M ]') :: $*"; }
@@ -130,12 +127,12 @@ author_dvd() { # {{{
   logger "authoring DVD..."
 
   if [[ -f "$directory/ch.list" ]]; then
-    ionice -t -c 3 dvdauthor -t -c $(cat "$directory/ch.list") -o "$directory/MOVIE" "$directory/movie.mpeg" || process_error 'dvdauthor failed writing movie'
+    ionice -t -c 3 VIDEO_FORMAT=NTSC dvdauthor -t -c $(cat "$directory/ch.list") -o "$directory/MOVIE" "$directory/movie.mpeg" || process_error 'dvdauthor failed writing movie'
   else
-    ionice -t -c 3 dvdauthor -t -o "$directory/MOVIE" "$directory/movie.mpeg" || process_error 'dvdauthor failed writing movie'
+    ionice -t -c 3 VIDEO_FORMAT=NTSC dvdauthor -t -o "$directory/MOVIE" "$directory/movie.mpeg" || process_error 'dvdauthor failed writing movie'
   fi
 
-  ionice -t -c 3 dvdauthor -T -o "$directory/MOVIE" || process_error 'dvdauthor failed writing title'
+  ionice -t -c 3 VIDEO_FORMAT=NTSC dvdauthor -T -o "$directory/MOVIE" || process_error 'dvdauthor failed writing title'
 
   # save it if desired
   [[ -n "$dvd_dir" ]] && ionice -t -c 3 cp -rv "$directory/MOVIE" "$dvd_dir/${name_lower^^}"
