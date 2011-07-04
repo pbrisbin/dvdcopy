@@ -26,9 +26,9 @@ prompt() { # {{{
 } # }}}
 
 requirements() { # {{{
-  local reqs=('bc'      'perl'      'tcprobe'
-              'vobcopy' 'mencoder'  'dvdauthor'
-              'mkisofs' 'growisofs')
+  local reqs=('awk' 'perl' 'tcprobe' 'vobcopy'
+              'mencoder' 'dvdauthor' 'mkisofs'
+              'growisofs')
 
   for req in ${reqs[@]}; do
     which $req &>/dev/null || errorout "$req required, not installed."
@@ -80,11 +80,13 @@ get_dvd_info() { # {{{
     prompt 'no chapters were found, continue' || exit 1
   fi
 
-  # calculate the vbr
-  l=$(awk '/^V\:/ {print $4}' "$directory/probe.txt")
-  a=$(awk '/^A\:/ {print $5}' "$directory/probe.txt")
-  a=$(echo "$a/8" | bc)
-  vbr=$(echo "(($size-($a*$l))/$l)*8" | bc)
+  # calculate vbr to stay under $size
+  vbr=$(awk -v size=$size '
+    /^V\:/ { l = $4   }
+    /^A\:/ { a = $5/8 }
+    END {
+      printf("%d\n", (((size-(a*l))/l)*8) + 0.5)
+    }' "$directory/probe.txt")
 
   logger "found device   : $device"
   logger "found title    : $title"
