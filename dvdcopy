@@ -28,7 +28,7 @@ prompt() { # {{{
 requirements() { # {{{
   local reqs=('awk' 'perl' 'tcprobe' 'vobcopy'
               'mencoder' 'dvdauthor' 'mkisofs'
-              'growisofs')
+              'growisofs' 'ionice')
 
   for req in ${reqs[@]}; do
     which $req &>/dev/null || errorout "$req required, not installed."
