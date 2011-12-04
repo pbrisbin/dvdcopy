@@ -5,7 +5,7 @@
 ###
 
 logger()   { echo -e "$(date +'[ %d %b %H:%M ]') :: $*"; }
-errorout() { echo -e "\aerror: $*" >/dev/stdout; exit 1; }
+errorout() { echo -e "\aerror: $*" >/dev/stderr; exit 1; }
 
 process_error() {
   if $keep_going; then
