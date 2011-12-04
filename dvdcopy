@@ -16,7 +16,7 @@ process_error() {
 }
 
 with_ionice() {
-  if $ionice
+  if $ionice; then
     ionice -t -c 3 "$@"
   else
     "$@"
@@ -195,8 +195,6 @@ message() { # {{{
     is passed). for syntax, see the help entry for the --config option.
     commandline arguments will overrule what's defined in the config
 
-    invalid options may lead to odd behavior
-
     options:
 
       --config=<file>               read any of the below options from a
@@ -330,7 +328,13 @@ parse_options() { # {{{
       -f|--force)      force=true              ;;
       -n|--ionice)     ionice=true             ;;
       -h|--help)       message                 ;;
-      *)               eval "${1/--/}"         ;; # all other options
+
+      # all other options are handled by a simple eval, we rely on the
+      # case pattern to do the validation
+      --directory=*|--device=*|--title=*|--size=*|--limit=*|--mpeg_dir=*|--dvd_dir=*|--iso_dir=*|--mencoder_option=*)
+        eval "${1/--/}" ;;
+
+      *) message ;;
     esac
     shift
   done
