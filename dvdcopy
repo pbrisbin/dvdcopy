@@ -241,6 +241,7 @@ message() { # {{{
                                     read/burn before giving up, default
                                     is 15
 
+      --info_only                   stop after printing the dvd information
       --mpeg_only                   stop after transcoding the mpeg
       --dvd_only                    stop after authoring the dvd
       --iso_only                    stop after generating the iso
