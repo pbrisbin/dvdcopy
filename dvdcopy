@@ -7,21 +7,23 @@
 logger()   { echo -e "$(date +'[ %d %b %H:%M ]') :: $*"; }
 errorout() { echo -e "\aerror: $*" >/dev/stderr; exit 1; }
 
-process_error() {
+process_error() { # {{{
   if $keep_going; then
     echo "warning: $*" >&2
   else
     errorout "$*"
   fi
 }
+# }}}
 
-with_ionice() {
+with_ionice() { # {{{
   if $ionice; then
     ionice -t -c 3 "$@"
   else
     "$@"
   fi
 }
+# }}}
 
 prompt() { # {{{
   echo -en "\a$*? [Y/n/q] " && read A
