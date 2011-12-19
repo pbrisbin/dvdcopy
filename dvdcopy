@@ -60,7 +60,7 @@ cleanup() { # {{{
 } # }}}
 
 get_dvd_info() { # {{{
-  local count=0
+  local count=0 ch_found=true
 
   logger 'gathering DVD info...'
 
@@ -86,8 +86,9 @@ get_dvd_info() { # {{{
 
   # a check on the chapters, so far it can always be fixed by picking
   # title 1
-  if ! grep -q [1-9] "$directory/ch.list"; then
+  if ! grep -q '[1-9]' "$directory/ch.list"; then
     prompt 'no chapters were found, continue' || exit 1
+    ch_found=false
   fi
 
   # calculate vbr to stay under $size
@@ -102,13 +103,16 @@ get_dvd_info() { # {{{
   logger "found title    : $title"
   logger "found name     : $name_lower"
   logger "found bitrate  : $vbr kbit/s"
-  logger "found chapters : "
 
-  chapters=( $(sed 's/\,/\n/g' "$directory/ch.list") )
+  if $ch_found; then
+    logger "found chapters : "
 
-  for ((i=0; i<${#chapters[@]}; i++)); do
-    logger "               : chapter $((i+1))\t${chapters[$i]}"
-  done
+    chapters=( $(sed 's/\,/\n/g' "$directory/ch.list") )
+
+    for ((i=0; i<${#chapters[@]}; i++)); do
+      logger "               : chapter $((i+1))\t${chapters[$i]}"
+    done
+  fi
 
   $info_only && exit 0
 } # }}}
