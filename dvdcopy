@@ -338,7 +338,7 @@ parse_options() { # {{{
       # all other options are handled by a simple eval, we rely on the
       # case pattern to do the validation
       --directory=*|--device=*|--title=*|--size=*|--limit=*|--mpeg_dir=*|--dvd_dir=*|--iso_dir=*|--mencoder_options=*)
-        eval "${1/--/}" ;;
+        eval $(echo $1 | sed -r 's/--(.+)=(.+)/\1="\2"/') ;;
 
       *) message ;;
     esac
