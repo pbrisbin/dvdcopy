@@ -238,7 +238,7 @@ message() { # {{{
 
       --title=<number>              set the title, default is longest
 
-      --size=<number>               set the desired output size in KB, 
+      --size=<number>               set the desired output size in KB,
                                     default is 4193404, DVD5
 
       --limit=<number>              set the number of times to attempt a
@@ -337,8 +337,8 @@ parse_options() { # {{{
 
       # all other options are handled by a simple eval, we rely on the
       # case pattern to do the validation
-      --directory=*|--device=*|--title=*|--size=*|--limit=*|--mpeg_dir=*|--dvd_dir=*|--iso_dir=*|--mencoder_option=*)
-        eval "${1/--/}" ;;
+      --directory=*|--device=*|--title=*|--size=*|--limit=*|--mpeg_dir=*|--dvd_dir=*|--iso_dir=*|--mencoder_options=*)
+        eval $(echo $1 | sed -r 's/--(.+)=(.+)/\1="\2"/') ;;
 
       *) message ;;
     esac
