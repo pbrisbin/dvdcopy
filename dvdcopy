@@ -238,7 +238,7 @@ message() { # {{{
 
       --title=<number>              set the title, default is longest
 
-      --size=<number>               set the desired output size in KB, 
+      --size=<number>               set the desired output size in KB,
                                     default is 4193404, DVD5
 
       --limit=<number>              set the number of times to attempt a
